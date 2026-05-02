@@ -62,16 +62,17 @@ For startups and mid-scale companies, setting up and maintaining a data center i
 
 AWS is highly popular because it holds the **first mover advantage**. AWS was the first company to pioneer and successfully launch the concept of the cloud, leading many companies to start their cloud journeys with Amazon Web Services 10 or 12 years ago. This head start has given AWS the **largest market share**.
 
+---
 ## 🟢 AWS Global Infrastructure
 
 AWS is **global by design**. To deliver speed, reliability, and fault tolerance, AWS builds its services on a layered structure:
 
 1. **Region**
 
-   * A **Region** is a physical geographic area (like “US East (N. Virginia)” or “Asia Pacific (Mumbai)”).
+   * A **Region** is a physical geographic area (like "N. Virginia (us-east-1)" or "Mumbai (ap-south-1)").
    * Each region contains multiple **Availability Zones**.
    * We choose a region based on **latency, cost, and data laws** (e.g., a bank in India may prefer “ap-south-1” Mumbai to comply with data regulations).
-
+   
 2. **Availability Zone (AZ)**
 
    * An AZ is like a **data center cluster** with independent power, cooling, and networking.
@@ -88,3 +89,16 @@ AWS is **global by design**. To deliver speed, reliability, and fault tolerance,
    * With Edge Locations: AWS keeps a cached copy of that picture at an Edge Location in Delhi. Next time someone in India asks for it, it’s served locally, almost instantly.
 
    This system is called **Amazon CloudFront (CDN)**, and it relies on Edge Locations.
+
+```
+Asia Pacific (group)    --> This is just a geographic label
+│
+├── ap-south-1 (Mumbai) → Region
+│      ├── ap-south-1a → AZ
+│      ├── ap-south-1b → AZ
+│      └── ap-south-1c → AZ
+│
+├── ap-southeast-1 (Singapore) → Region
+         ├── ap-southeast-1a → AZ
+         └── ...
+```

@@ -114,13 +114,13 @@ In the following playbook, we install nginx and start nginx.
 
     tasks: # now we specify tasks to be performed
 
-     - name: Install nginx   # we can give any name to the task
-       apt:    # we want to use the apt module
-       name: nginx   # name of the package
-       state: present # to install nginx
+    - name: Install nginx   # we can give any name to the task
+      apt:    # we want to use the apt module
+	      name: nginx   # name of the package
+        state: present # to install nginx
 
-     - name: Start nginx  # this is the name our second task
-       service:  # we want to use service module
+    - name: Start nginx  # this is the name our second task
+      service:  # we want to use service module
         name: nginx  # we are interested about nginx service
         state: started  # to start the service
 

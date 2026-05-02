@@ -37,3 +37,6 @@ While introducing ourselves as a DevOps Engineer, we must mention
 - Previous experience (as a programmer / system admin) before joining DevOps role.
 - Explain roles and activities performed as a DevOps Enginner.
 - Mention about different tools
+
+## References
+- [What is a DevOps Engineer](https://github.com/resources/articles/what-is-a-devops-engineer)

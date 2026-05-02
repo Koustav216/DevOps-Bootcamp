@@ -3,6 +3,7 @@ A VPC is a logically isolated network with its own IP address range. In VPC, we 
 
 By default, nothing gets in. Nothing gets out.
 
+> AWS by default creates a default VPC in every region. 
 ### CIDR block
 
 When we create a VPC, AWS asks for a CIDR block, like:
@@ -36,13 +37,62 @@ A public IP on a resource does NOT automatically mean internet connectivity. A r
 
   A subnet lives in exactly ONE Availability Zone. We place resources (EC2, RDS, etc.) inside subnets, not directly in the VPC.
 
+  Every subnet in a VPC must use exactly one route table. 
+  - **Explicit subnet associations** means we manually associated a subnet with a specific route table. Now those subnets explicitly use that route table. 
+  - **Subnets without explicit associations** means these subnets are not manually associated with any custom route table. So AWS automatically associates them with the main route table (default route table).
+
+  > Each of the default VPC in a region contains a default subnet in every Availability Zone.
+
 * **Internet Gateway:** This acts as the "gate" to our VPC, allowing traffic from the public internet to enter our VPC. The public IP belongs to the resource (e.g. ec2), not the IGW. We should use a VPC endpoint to connect to AWS services privately, without the use of an internet gateway or NAT device.
 
-* **Route Tables:** Each subnet is associated with one route table. They define where network traffic goes. This is how AWS knows whether traffic escapes or stays private.
+* **Route Tables:** Each subnet is associated with one route table. They define where network traffic goes. This is how AWS knows whether traffic escapes or stays private. 
+  - The **Route Origin** property indicates how the route was created. Common values include:
+    - **CreateRoute** → manually added
+    - **CreateRouteTable** → default local route added when the table was created
+    - **EnableVgwRoutePropagation** → Route added automatically by a Virtual Private Gateway (VPN), appears when connecting on-prem to AWS via VPN
+    - **CreateVpcPeeringConnection** → route added due to VPC peering
+  - The **Propagated** property indicates if this route is dynamically learned.
+    - **Propagated = Yes** means this route was automatically injected into the route table by another AWS service e.g. AWS learns routes from our on-prem network and automatically adds them to route table.
+    - **Propagated = No** means this route is static
+  - Route Tables use **longest prefix match** to find the most specific route. 
+  
+    For example:
+    ```
+    Routes:
+    10.0.0.0/16 → local
+    10.0.1.0/24 → NAT Gateway
+    0.0.0.0/0   → Internet Gateway
+    ```
+    If the destination is `10.0.1.25`, it uses `10.0.1.0/24` (more specific).
+* **Network Access Control List**: A Network Access Control List is a stateless firewall that controls inbound and outbound traffic at the subnet level. It operates at the IP address level and can allow or deny traffic based on rules that we define. NACLs provide an additional layer of network security for our VPC. 
 
-* **Network Access Control List**: A Network Access Control List is a stateless firewall that controls inbound and outbound traffic at the subnet level. It operates at the IP address level and can allow or deny traffic based on rules that we define. NACLs provide an additional layer of network security for our VPC.
+  It is stateless in nature,i.e. every packet is judged **independently**. If we allow inbound traffic, we must also explicitly allow outbound response traffic. Without that, and traffic mysteriously fails. They are used for:
 
-* **Security Groups**: A security group acts as a virtual firewall for instances (EC2 instances or other resources) within a VPC. It controls inbound and outbound traffic at the instance level. Security groups allow you to define rules that permit or restrict traffic based on protocols, ports, and IP addresses.
+  * Blocking known bad IP ranges
+  * Extra coarse-grained protection at subnet level
+
+  NACLs are **not** for fine-grained app security.
+
+  > In practice, Security Groups handle most access control, while NACLs are used sparingly for subnet-level guardrails or compliance.
+  
+* **Security Groups**: A security group acts as a virtual firewall for instances (EC2 instances or other resources) within a VPC. It controls inbound and outbound traffic at the instance level. Security groups allow you to define rules that permit or restrict traffic based on protocols, ports, and IP addresses. Security Groups by default deny all inbound traffic (except ssh) and allow all outbound traffic. They are stateful in nature, i.e. if inbound traffic is allowed:
+
+  * The return traffic is **automatically allowed**
+  * We do NOT need to write reverse rules
+
+  If outbound traffic is allowed, the response is allowed back in. State is tracked. Security Groups are used to:
+
+  * Allow HTTP/HTTPS from the load balancer
+  * Allow database access only from app servers
+  * Allow SSH only from a bastion host
+  * Reference **other Security Groups** instead of IPs (huge best practice)
+
+  Security Groups are our **primary security control** in AWS.
+  
+  When a VPC is created, AWS gives us a default SG that allows traffic from itself (same SG) and allows all outbound traffic. So, instances using the default SG can talk to each other freely and nothing else can talk to them unless we open it. We should not modify the default security group. Instead, we should create separate Security Groups for our instances. Otherwise, it becomes
+  - A shared configuration mess
+  - No separation of concerns
+  - Hard to debug
 
 * **NAT Gateway**: A NAT gateway is a Network Address Translation (NAT) service. We can use a NAT gateway so that instances in a private subnet can connect to services outside your VPC but external services can't initiate a connection with those instances.
 
@@ -60,12 +110,14 @@ A public IP on a resource does NOT automatically mean internet connectivity. A r
 ## Fundamentals
 - Inside a VPC, all subnets are part of the same private network.
 
-  Subnets are just IP range partitions. Traffic between subnets is local traffic, not “internet traffic”. Every VPC route table contains the following route:
-
+  Subnets are just IP range partitions. Traffic between subnets is local traffic, not “internet traffic”. When we create a VPC, a default route table (marked as **main**) is automatically created. It is associated with all the subnets (without explicit association) and contains the following route:
   ```
   VPC-CIDR → local
   ```
   This route allows any subnet to talk to any other subnet, unless blocked by Security Group or NACL.
+  > If we add a public route to this route table, then all subnets using that table become public.
+
+- Although AWS creates a default route table, it’s best practice to create separate route tables for public and private subnets. This allows us to control routing behavior independently, such as sending public subnet traffic to the Internet Gateway and private subnet traffic to a NAT Gateway. Using the default route table for all subnets would remove this separation.
 
 - AWS knows which subnet the EC2 belongs to because the public IP is mapped to the EC2’s Elastic Network Interface (ENI), and the ENI is already attached to a specific subnet. AWS maintains a map to find the ENI from a public IP. AWS does not infer the subnet from the route table. 
 
@@ -185,9 +237,7 @@ VPC-CIDR → local
 0.0.0.0/0 → Internet Gateway
 ```
 
-#### Traffic flow
-
-**Outbound traffic**
+For **Outbound traffic**
 
 ```
 Private EC2
@@ -206,7 +256,7 @@ What happens here:
 * Internet sees traffic coming from the NAT Gateway’s public IP
 
 
-**Inbound traffic**
+For **Inbound traffic**
 
 ```
 Internet
@@ -239,3 +289,4 @@ No routing to private subnets occurs. Ever.
 ## References
 - Know more about [How Amazon VPC works](https://docs.aws.amazon.com/vpc/latest/userguide/how-it-works.html)
 - [VPC with servers in private subnet](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-example-private-subnets-nat.html)
+- [Regional NAT Gateways](https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateways-regional.html)

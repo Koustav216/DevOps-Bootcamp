@@ -77,7 +77,9 @@ Make sure the permisson bits of the key-value file looks like this `-rwx------` 
 
   - For example, `ssh -i ./helloworldPasskey.pem ubuntu@16.170.242.189`
   - Here, **-i** stands for **identity file**.
-  - As we have created a Ubuntu machine, the deafult username is **ubuntu**. For other values, look into [this](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-to-linux-instance.html#connection-prereqs-get-info-about-instance)
+  - As we have created a Ubuntu machine, the deafult username is **ubuntu**.
+  
+    ![this](./assets/default_username_aws.JPG)
 
 - Type yes to connect.
 
